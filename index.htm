@@ -69,13 +69,17 @@
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
     let time = 0;
+
     function resizeCanvas() {
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
     }
+
     window.addEventListener('resize', resizeCanvas);
+
     // Audio-reactive gradient variables
     let audioReactiveOffset = 0;
+
     function drawGradient(audioReactive = false) {
       const centerX = canvas.width / 2;
       const centerY = canvas.height / 2;
@@ -88,48 +92,70 @@
         centerY,
         radius
       );
+
       // Modify gradient based on audio-reactive offset
       gradient.addColorStop(0, `hsla(${(time * 0.01 + audioReactiveOffset) % 360}, 100%, 70%, 1)`);
       gradient.addColorStop(0.5, `hsla(${(time * 0.02 + audioReactiveOffset) % 360}, 100%, 50%, 0.8)`);
       gradient.addColorStop(1, `hsla(${(time * 0.03 + audioReactiveOffset) % 360}, 100%, 30%, 0)`);
+
       ctx.fillStyle = gradient;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
+
       // Update button colors to match gradient
       const buttons = document.querySelectorAll('button');
       buttons.forEach(button => {
         button.style.color = `hsla(${(time * 0.01 + audioReactiveOffset) % 360}, 100%, 70%, 1)`;
       });
+
+      // Calculate inverse color for shadow
+      const hue = (time * 0.01 + audioReactiveOffset) % 360;
+      const inverseHue = (hue + 180) % 360;
+      const shadowColor = `hsla(${inverseHue}, 100%, 70%, 1)`;
+
+      // Apply shadow to phrase
+      const phraseElement = document.getElementById('phrase');
+      phraseElement.style.textShadow = `2px 2px 5px ${shadowColor}`;
     }
+
     function animateGradient() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       drawGradient();
       time += 10;
       requestAnimationFrame(animateGradient);
     }
+
     animateGradient();
+
     const AudioContext = window.AudioContext || window.webkitAudioContext;
     const audioCtx = new AudioContext();
+
     // Gain node to control volume
     const gainNode = audioCtx.createGain();
     gainNode.gain.value = 0.7; // Set volume to 70%
+
     // Delay effect
     const delay = audioCtx.createDelay();
     delay.delayTime.value = 0.3; // Initial delay time in seconds
+
     // Feedback loop for delay
     const feedback = audioCtx.createGain();
     feedback.gain.value = 0.5; // Moderate feedback level
     delay.connect(feedback);
     feedback.connect(delay);
+
     // Tiny reverb using a ConvolverNode
     const reverb = audioCtx.createConvolver();
     const reverbBuffer = audioCtx.createBuffer(2, audioCtx.sampleRate * 0.5, audioCtx.sampleRate); // Shorter reverb time
     const leftChannel = reverbBuffer.getChannelData(0);
     const rightChannel = reverbBuffer.getChannelData(1);
+
     for (let i = 0; i < leftChannel.length; i++) {
       leftChannel[i] = (Math.random() * 2 - 1) * 0.3; // Reduced intensity for tiny reverb
       rightChannel[i] = (Math.random() * 2 - 1) * 0.3;
     }
+
     reverb.buffer = reverbBuffer;
+
     // Phaser effect
     const phaser = audioCtx.createStereoPanner();
     const lfo = audioCtx.createOscillator();
@@ -140,6 +166,7 @@
     lfo.connect(lfoGain);
     lfoGain.connect(phaser.pan);
     lfo.start();
+
     // Compressor to prevent clipping
     const compressor = audioCtx.createDynamicsCompressor();
     compressor.threshold.value = -12; // Threshold for compression
@@ -147,6 +174,7 @@
     compressor.ratio.value = 12; // High ratio for limiting
     compressor.attack.value = 0.003; // Fast attack
     compressor.release.value = 0.25; // Moderate release
+
     // Connect nodes: Gain -> Phaser -> Delay/Reverb -> Compressor -> Destination
     gainNode.connect(phaser);
     phaser.connect(delay);
@@ -154,50 +182,64 @@
     delay.connect(compressor); // Delay output to compressor
     reverb.connect(compressor); // Reverb output to compressor
     compressor.connect(audioCtx.destination);
+
     // Drum-specific effects
     const drumCompressor = audioCtx.createDynamicsCompressor();
     drumCompressor.threshold.value = -10; // More aggressive threshold
     drumCompressor.ratio.value = 8; // Stronger compression
+
     const limiter = audioCtx.createDynamicsCompressor();
     limiter.threshold.value = -1; // Hard limit to prevent clipping
     limiter.ratio.value = 20; // High ratio for limiting
     limiter.attack.value = 0.001; // Very fast attack
     limiter.release.value = 0.05; // Fast release
+
     const drumDelay = audioCtx.createDelay();
     drumDelay.delayTime.value = 0.1; // Fast delay for drums
+
     const drumFeedback = audioCtx.createGain();
     drumFeedback.gain.value = 0.4; // Moderate feedback
     drumDelay.connect(drumFeedback);
     drumFeedback.connect(drumDelay);
+
     const distortion = audioCtx.createWaveShaper();
     const distortionCurve = new Float32Array(65536);
+
     for (let i = 0; i < distortionCurve.length; i++) {
       const x = (i / 65536) * 2 - 1;
       distortionCurve[i] = Math.tanh(x * 5); // Soft distortion curve
     }
+
     distortion.curve = distortionCurve;
+
     // Connect drum effects chain
     drumDelay.connect(distortion);
     distortion.connect(drumCompressor);
     drumCompressor.connect(limiter);
     limiter.connect(audioCtx.destination);
+
     // Euclidean sequencer function
     function euclideanSequence(steps, beats) {
       let sequence = Array(steps).fill(0);
       let bucket = 0;
+
       for (let i = 0; i < steps; i++) {
         bucket += beats;
+
         if (bucket >= steps) {
           sequence[i] = 1;
           bucket -= steps;
         }
       }
+
       return sequence;
     }
+
     // Generate random jazzy chord frequencies across 2 octaves down
     function generateJazzyChord(rootFreq) {
       const octaveOffset = Math.floor(Math.random() * 4) - 2; // Random octave offset, transposed down by 2 octaves
       const useMaj7 = Math.random() < 0.5; // Randomly alternate between minor 9 and maj7 chords
+
       if (useMaj7) {
         const ratios = [1, 5 / 4, 3 / 2, 15 / 8]; // Major 7 intervals
         return ratios.map(ratio => rootFreq * ratio * Math.pow(2, octaveOffset));
@@ -206,16 +248,18 @@
         return ratios.map(ratio => rootFreq * ratio * Math.pow(2, octaveOffset));
       }
     }
+
     // Create oscillators for the chord with slight detuning for jazziness
     function createJazzyOscillators(frequencies) {
       return frequencies.map(freq => {
         const osc = audioCtx.createOscillator();
         osc.type = 'triangle'; // Using triangle wave for a smoother, jazzy sound
         osc.frequency.value = freq * (1 + (Math.random() * 0.02 - 0.01)); // Slight random detuning
-        osc.connect(gainNode); 
+        osc.connect(gainNode);
         return osc;
       });
     }
+
     // Play a chord with some swing timing for jazz feel
     function playJazzyChord(oscillators) {
       const swingFactor = 1 + (Math.random() * 0.1 - 0.05); // Add slight swing to timing
@@ -224,6 +268,7 @@
         oscillators.forEach(osc => osc.stop());
       }, 150 * swingFactor); // Adjusted duration with swing
     }
+
     // Drum sounds
     const kick = () => {
       const osc = audioCtx.createOscillator();
@@ -234,29 +279,35 @@
       gain.gain.setValueAtTime(1, audioCtx.currentTime);
       gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
       osc.connect(gain);
-      gain.connect(drumDelay); 
+      gain.connect(drumDelay);
       osc.start();
       osc.stop(audioCtx.currentTime + 0.5);
     };
+
     const snare = () => {
       const noise = audioCtx.createBufferSource();
       const noiseBuffer = audioCtx.createBuffer(1, audioCtx.sampleRate / 2, audioCtx.sampleRate);
       const noiseData = noiseBuffer.getChannelData(0);
+
       for (let i = 0; i < noiseData.length; i++) noiseData[i] = Math.random() * 2 - 1;
+
       noise.buffer = noiseBuffer;
       const gain = audioCtx.createGain();
       gain.gain.setValueAtTime(0.5, audioCtx.currentTime);
       gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
       noise.connect(gain);
-      gain.connect(drumDelay); 
+      gain.connect(drumDelay);
       noise.start();
       noise.stop(audioCtx.currentTime + 0.2);
     };
+
     const hihat = () => {
       const noise = audioCtx.createBufferSource();
       const noiseBuffer = audioCtx.createBuffer(1, audioCtx.sampleRate / 4, audioCtx.sampleRate);
       const noiseData = noiseBuffer.getChannelData(0);
+
       for (let i = 0; i < noiseData.length; i++) noiseData[i] = Math.random() * 2 - 1;
+
       noise.buffer = noiseBuffer;
       const filter = audioCtx.createBiquadFilter();
       filter.type = 'highpass';
@@ -266,15 +317,18 @@
       gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
       noise.connect(filter);
       filter.connect(gain);
-      gain.connect(drumDelay); 
+      gain.connect(drumDelay);
       noise.start();
       noise.stop(audioCtx.currentTime + 0.1);
     };
+
     const clap = () => {
       const noise = audioCtx.createBufferSource();
       const noiseBuffer = audioCtx.createBuffer(1, audioCtx.sampleRate / 4, audioCtx.sampleRate);
       const noiseData = noiseBuffer.getChannelData(0);
+
       for (let i = 0; i < noiseData.length; i++) noiseData[i] = Math.random() * 2 - 1;
+
       noise.buffer = noiseBuffer;
       const filter = audioCtx.createBiquadFilter();
       filter.type = 'bandpass';
@@ -284,10 +338,11 @@
       gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
       noise.connect(filter);
       filter.connect(gain);
-      gain.connect(drumDelay); 
+      gain.connect(drumDelay);
       noise.start();
       noise.stop(audioCtx.currentTime + 0.15);
     };
+
     // Additional drum sequencer that goes 2 octaves up
     const highKick = () => {
       const osc = audioCtx.createOscillator();
@@ -302,11 +357,14 @@
       osc.start();
       osc.stop(audioCtx.currentTime + 0.3);
     };
+
     const highSnare = () => {
       const noise = audioCtx.createBufferSource();
       const noiseBuffer = audioCtx.createBuffer(1, audioCtx.sampleRate / 2, audioCtx.sampleRate);
       const noiseData = noiseBuffer.getChannelData(0);
+
       for (let i = 0; i < noiseData.length; i++) noiseData[i] = Math.random() * 2 - 1;
+
       noise.buffer = noiseBuffer;
       const filter = audioCtx.createBiquadFilter();
       filter.type = 'highpass';
@@ -320,11 +378,14 @@
       noise.start();
       noise.stop(audioCtx.currentTime + 0.15);
     };
+
     const highHihat = () => {
       const noise = audioCtx.createBufferSource();
       const noiseBuffer = audioCtx.createBuffer(1, audioCtx.sampleRate / 4, audioCtx.sampleRate);
       const noiseData = noiseBuffer.getChannelData(0);
+
       for (let i = 0; i < noiseData.length; i++) noiseData[i] = Math.random() * 2 - 1;
+
       noise.buffer = noiseBuffer;
       const filter = audioCtx.createBiquadFilter();
       filter.type = 'highpass';
@@ -338,11 +399,14 @@
       noise.start();
       noise.stop(audioCtx.currentTime + 0.05);
     };
+
     const highClap = () => {
       const noise = audioCtx.createBufferSource();
       const noiseBuffer = audioCtx.createBuffer(1, audioCtx.sampleRate / 4, audioCtx.sampleRate);
       const noiseData = noiseBuffer.getChannelData(0);
+
       for (let i = 0; i < noiseData.length; i++) noiseData[i] = Math.random() * 2 - 1;
+
       noise.buffer = noiseBuffer;
       const filter = audioCtx.createBiquadFilter();
       filter.type = 'bandpass';
@@ -356,21 +420,24 @@
       noise.start();
       noise.stop(audioCtx.currentTime + 0.1);
     };
+
     // Main sequencer logic
     let isPlaying = false;
     let rootFrequency = 220; // A3 as the root
-    let steps = 32; 
-    let beats = 7; 
-    let seq1 = euclideanSequence(steps, Math.floor(Math.random() * 5 + 5)); 
+    let steps = 32;
+    let beats = 7;
+    let seq1 = euclideanSequence(steps, Math.floor(Math.random() * 5 + 5));
     let seq2 = euclideanSequence(steps, beats);
     let step = 0;
     let bpm = 300; // Global BPM increased to 300
     let stepDuration = (60 / bpm) * 1000;
     let stepsCounter = 0; // Counter to track every 64 steps
+
     // Function to update root frequency randomly
     function updateRootFrequency() {
       rootFrequency = 220 * Math.pow(2, Math.floor(Math.random() * 12) / 12); // Random note within an octave from A3
     }
+
     // Word-by-word display logic
     const phrases = [
      "Solar riots bloom in the ghost cities.",
@@ -554,22 +621,16 @@
     "We become the myth.",
     "And the earth sings us home."
     ];
+
     // Split all phrases into words
-    let wordPool = [];
-    function shufflePhrases() {
-      // Shuffle the phrases array each time
-      for (let i = phrases.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [phrases[i], phrases[j]] = [phrases[j], phrases[i]];
-      }
-      wordPool = phrases.flatMap(phrase => phrase.split(' '));
-    }
-    shufflePhrases(); // Initial shuffle
+    const wordPool = phrases.flatMap(phrase => phrase.split(' '));
     let currentWordIndex = 0;
     const phraseElement = document.getElementById('phrase');
+
     function showNextWord() {
       const word = wordPool[currentWordIndex];
       phraseElement.textContent = word.toUpperCase();
+
       // Align the text with the moving gradient center
       const centerX = canvas.width / 2 + Math.sin(time * 0.001) * 100;
       const centerY = canvas.height / 2 + Math.cos(time * 0.0015) * 100;
@@ -577,47 +638,55 @@
       phraseElement.style.top = `${centerY}px`;
       phraseElement.style.transform = 'translate(-50%, -50%)';
       phraseElement.style.opacity = 1;
+
       setTimeout(() => {
         phraseElement.style.opacity = 0;
       }, stepDuration / 2); // Show each word for half the step duration
+
       currentWordIndex = (currentWordIndex + 1) % wordPool.length;
     }
+
     function startSequencer() {
       if (isPlaying) return;
       isPlaying = true;
-      shufflePhrases(); // Shuffle phrases each time sequencer starts
       currentWordIndex = 0; // Reset word index
       stepsCounter = 0; // Reset step counter
+
       const interval = setInterval(() => {
         if (!isPlaying) {
           clearInterval(interval);
           return;
         }
+
         if (step === 0) {
-          steps = Math.floor(Math.random() * 4 + 12); 
-          beats = Math.floor(Math.random() * 5 + 5); 
-          seq1 = euclideanSequence(steps, Math.floor(Math.random() * 5 + 5)); 
+          steps = Math.floor(Math.random() * 4 + 12);
+          beats = Math.floor(Math.random() * 5 + 5);
+          seq1 = euclideanSequence(steps, Math.floor(Math.random() * 5 + 5));
           seq2 = euclideanSequence(steps, beats);
           bpm = 300; // Fixed global BPM
-          stepDuration = (60 / bpm) * 1000; 
+          stepDuration = (60 / bpm) * 1000;
         }
+
         if (seq2[step]) {
           showNextWord(); // Show next word rhythmically
           // Make gradient reactive to seq2
           audioReactiveOffset = Math.random() * 360; // Change gradient hue based on seq2
         }
+
         if (seq2[step]) {
-          const chordFrequencies = generateJazzyChord(rootFrequency * Math.pow(2, Math.floor(Math.random() * 3) - 2)); 
+          const chordFrequencies = generateJazzyChord(rootFrequency * Math.pow(2, Math.floor(Math.random() * 3) - 2));
           const oscillators = createJazzyOscillators(chordFrequencies);
           playJazzyChord(oscillators);
         }
+
         if (seq1[step]) {
-          const randomDrum = Math.floor(Math.random() * 4); 
+          const randomDrum = Math.floor(Math.random() * 4);
           if (randomDrum === 0) kick();
           else if (randomDrum === 1) snare();
           else if (randomDrum === 2) hihat();
           else if (randomDrum === 3) clap();
         }
+
         // Trigger the additional high-pitched drum sequencer
         if (seq1[(step + 4) % steps]) { // Offset high drum pattern
           const randomHighDrum = Math.floor(Math.random() * 4);
@@ -626,17 +695,21 @@
           else if (randomHighDrum === 2) highHihat();
           else if (randomHighDrum === 3) highClap();
         }
+
         step = (step + 1) % seq2.length;
+
         // Increment steps counter and update root frequency every 64 steps
         stepsCounter++;
         if (stepsCounter % 64 === 0) {
           updateRootFrequency();
         }
-      }, stepDuration); 
+      }, stepDuration);
     }
+
     function stopSequencer() {
       isPlaying = false;
     }
+
     document.getElementById('start').addEventListener('click', startSequencer);
     document.getElementById('stop').addEventListener('click', stopSequencer);
 
