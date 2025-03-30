@@ -18,6 +18,7 @@
       top: 0;
       left: 0;
       z-index: 0;
+      cursor: pointer; /* Add pointer cursor to indicate interactivity */
     }
     button {
       position: absolute;
@@ -26,9 +27,11 @@
       font-size: 9.6px; /* Reduced font size by 40% */
       cursor: pointer;
       z-index: 10;
-      background: rgba(255, 255, 255, 0.8);
+      background: black;
       border: none;
       border-radius: 5px;
+      font-family: 'Helvetica', sans-serif;
+      color: hsla(0, 100%, 70%, 1); /* Initial text color matching gradient */
     }
     #start {
       left: 20px;
@@ -36,15 +39,12 @@
     #stop {
       left: 102px; /* Adjusted position due to smaller size */
     }
-    #fullscreen {
-      left: 184px; /* Positioned after 'Stop' button */
-    }
     #phrase {
       position: absolute;
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
-      color: white;
+      color: black;
       font-size: 40.8px; /* Increased font size by 170% (24px * 1.7) */
       font-weight: bold;
       opacity: 0;
@@ -52,8 +52,9 @@
       text-align: center;
       width: 80%;
       z-index: 10;
-      text-shadow: 1px 1px 2px black; /* Added a tiny black shadow for legibility */
       pointer-events: none; /* Ensure the text doesn't interfere with interactions */
+      font-family: 'Helvetica', sans-serif;
+      text-transform: uppercase;
     }
   </style>
 </head>
@@ -61,7 +62,6 @@
   <canvas id="gradientCanvas"></canvas>
   <button id="start">Start</button>
   <button id="stop">Stop</button>
-  <button id="fullscreen">Full Screen</button>
   <div id="phrase"></div>
   <script>
     const canvas = document.getElementById('gradientCanvas');
@@ -94,6 +94,11 @@
       gradient.addColorStop(1, `hsla(${(time * 0.03 + audioReactiveOffset) % 360}, 100%, 30%, 0)`);
       ctx.fillStyle = gradient;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
+      // Update button colors to match gradient
+      const buttons = document.querySelectorAll('button');
+      buttons.forEach(button => {
+        button.style.color = `hsla(${(time * 0.01 + audioReactiveOffset) % 360}, 100%, 70%, 1)`;
+      });
     }
     function animateGradient() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -362,12 +367,10 @@
     let bpm = 300; // Global BPM increased to 300
     let stepDuration = (60 / bpm) * 1000;
     let stepsCounter = 0; // Counter to track every 64 steps
-
     // Function to update root frequency randomly
     function updateRootFrequency() {
       rootFrequency = 220 * Math.pow(2, Math.floor(Math.random() * 12) / 12); // Random note within an octave from A3
     }
-
     // Word-by-word display logic
     const phrases = [
      "Solar riots bloom in the ghost cities.",
@@ -552,12 +555,21 @@
     "And the earth sings us home."
     ];
     // Split all phrases into words
-    const wordPool = phrases.flatMap(phrase => phrase.split(' '));
+    let wordPool = [];
+    function shufflePhrases() {
+      // Shuffle the phrases array each time
+      for (let i = phrases.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [phrases[i], phrases[j]] = [phrases[j], phrases[i]];
+      }
+      wordPool = phrases.flatMap(phrase => phrase.split(' '));
+    }
+    shufflePhrases(); // Initial shuffle
     let currentWordIndex = 0;
     const phraseElement = document.getElementById('phrase');
     function showNextWord() {
       const word = wordPool[currentWordIndex];
-      phraseElement.textContent = word;
+      phraseElement.textContent = word.toUpperCase();
       // Align the text with the moving gradient center
       const centerX = canvas.width / 2 + Math.sin(time * 0.001) * 100;
       const centerY = canvas.height / 2 + Math.cos(time * 0.0015) * 100;
@@ -573,6 +585,7 @@
     function startSequencer() {
       if (isPlaying) return;
       isPlaying = true;
+      shufflePhrases(); // Shuffle phrases each time sequencer starts
       currentWordIndex = 0; // Reset word index
       stepsCounter = 0; // Reset step counter
       const interval = setInterval(() => {
@@ -614,7 +627,6 @@
           else if (randomHighDrum === 3) highClap();
         }
         step = (step + 1) % seq2.length;
-
         // Increment steps counter and update root frequency every 64 steps
         stepsCounter++;
         if (stepsCounter % 64 === 0) {
@@ -627,7 +639,9 @@
     }
     document.getElementById('start').addEventListener('click', startSequencer);
     document.getElementById('stop').addEventListener('click', stopSequencer);
-    document.getElementById('fullscreen').addEventListener('click', () => {
+
+    // Fullscreen toggle on double click
+    canvas.addEventListener('dblclick', () => {
       if (!document.fullscreenElement) {
         document.documentElement.requestFullscreen();
       } else {
